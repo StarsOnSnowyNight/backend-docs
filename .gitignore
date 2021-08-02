@@ -1,0 +1,11 @@
+target/
+!**/src/main/**
+!**/src/test/**
+!.gitignore
+*.log
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
