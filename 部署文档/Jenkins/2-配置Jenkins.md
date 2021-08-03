@@ -67,7 +67,7 @@
     ubuntu@VM-0-8-ubuntu:~/.ssh$ cat /home/ubuntu/.ssh/id_rsa.pub
     复制公钥到gitlab
     测试拉取工程
-    ubuntu@VM-0-8-ubuntu:/data/testgit$ git clone git@118.25.139.57:jianglaiwang-backend-munion/data-transfer-server.git
+    ubuntu@VM-0-8-ubuntu:/data/testgit$ git clone git@118.XX.XX.57:XXX-backend-munion/data-transfer-server.git
     ```
     * 创建访问令牌
       <br>这里全部都勾上，可能不勾也可以
