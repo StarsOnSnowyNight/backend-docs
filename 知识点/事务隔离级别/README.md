@@ -42,7 +42,8 @@
 | READ-COMMITTED  | X | √ | √ |
 | REPEATABLE-READ  | X | X | √ |
 | SERIALIZABLE  | X | X | X |
-######Tips：MySQL 的 Innodb 数据库引擎默认使用REPEATABLE-READ隔离级别，我们可以使用for update来保证不会出现幻读。
+######Tips：repeatable read 允许幻读，这是ANSI/ISO SQL标准的定义要求。
+######敲重点！MySQL 的 Innodb 数据库引擎默认使用REPEATABLE-READ隔离级别。并且MySQL的REPEATABLE-READ是可以避免幻读的。
 
 ### 实际演示
 - 数据准备
@@ -58,6 +59,49 @@ CREATE TABLE `product_stock` (
 
 insert  into `product_stock`(`id`,`company_id`,`product_id`,`stock`) values (1,1,10,100),(2,1,11,100);
 ```
-- 脏读
+- READ-UNCOMMITTED【出现脏读】
 
+|  事务1   | 事务2  | 
+|  :----:  | :----:  |
+|  ``` SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;```  |  ``` SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;```  |
+|  ``` BEGIN;```  |  |
+|  ``` SELECT `stock` FROM `product_stock` WHERE id = 1;``` <br>![100](http://xuye-private.oss-cn-shanghai.aliyuncs.com/mackdown/backend-docs/2540120D-BCEE-4aaa-B394-09B9E6192098.png) |   |
+|  | ``` BEGIN;```  |
+|  | ``` UPDATE `product_stock` SET stock = 90 WHERE id = 1;```  |
+| ``` SELECT `stock` FROM `product_stock` WHERE id = 1;``` <br>![90](http://xuye-private.oss-cn-shanghai.aliyuncs.com/mackdown/backend-docs/957CC49A-F767-4742-8268-7993D3894E70.png) 出现脏读 |   |
+|  | ``` ROLLBACK;```  |
+|  ``` SELECT `stock` FROM `product_stock` WHERE id = 1;``` <br>![100](http://xuye-private.oss-cn-shanghai.aliyuncs.com/mackdown/backend-docs/2540120D-BCEE-4aaa-B394-09B9E6192098.png) |   |
+
+- READ-COMMITTED【避免脏读，出现不可重复读】
+
+|  事务1   | 事务2  | 
+|  :----:  | :----:  |
+|   ``` SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ; ```   |   ``` SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ; ```  |
+|   ``` BEGIN; ```  |  |
+|   ``` SELECT `stock` FROM `product_stock` WHERE id = 1; ``` <br>![100](http://xuye-private.oss-cn-shanghai.aliyuncs.com/mackdown/backend-docs/2540120D-BCEE-4aaa-B394-09B9E6192098.png) |   |
+|  |  ``` BEGIN; ```  |
+|  |  ``` UPDATE `product_stock` SET stock = 90 WHERE id = 1; ```  |
+|  ``` SELECT `stock` FROM `product_stock` WHERE id = 1; ``` <br>![100](http://xuye-private.oss-cn-shanghai.aliyuncs.com/mackdown/backend-docs/2540120D-BCEE-4aaa-B394-09B9E6192098.png) 避免脏读 |   |
+|  |  ``` COMMIT; ```  |
+|   ``` SELECT `stock` FROM `product_stock` WHERE id = 1; ``` <br>![90](http://xuye-private.oss-cn-shanghai.aliyuncs.com/mackdown/backend-docs/957CC49A-F767-4742-8268-7993D3894E70.png) 出现不可重复读|   |
+
+- REPEATABLE-READ【MySQL版，避免脏读，避免不可重复读，避免幻读】
+
+|  事务1   | 事务2  | 
+|  :----:  | :----:  |
+|   ``` SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ; ```   |   ``` SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ; ```  |
+|   ``` BEGIN; ```  |  |
+|   ``` SELECT `id`,`stock` FROM `product_stock` WHERE company_id = 1; ``` <br>![100](http://xuye-private.oss-cn-shanghai.aliyuncs.com/mackdown/backend-docs/62FF8D59-7477-49ca-B2ED-A0C3C7B8838B.png) |   |
+|  |  ``` BEGIN; ```  |
+|  |  ``` UPDATE `product_stock` SET stock = 90 WHERE id = 1; ```  |
+|  ``` SELECT `id`,`stock` FROM `product_stock` WHERE company_id = 1; ``` <br>![100](http://xuye-private.oss-cn-shanghai.aliyuncs.com/mackdown/backend-docs/62FF8D59-7477-49ca-B2ED-A0C3C7B8838B.png) 避免脏读 |   |
+|  |  ``` COMMIT; ```  |
+|   ``` SELECT `id`,`stock` FROM `product_stock` WHERE company_id = 1; ``` <br>![100](http://xuye-private.oss-cn-shanghai.aliyuncs.com/mackdown/backend-docs/62FF8D59-7477-49ca-B2ED-A0C3C7B8838B.png) 避免重复读|   |
+|  | ``` SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ; ``` |
+|  | ``` BEGIN; ``` |
+|  | ``` INSERT INTO`product_stock`(`company_id`,`product_id`,`stock`)VALUES(1,12,100); ``` |
+|  | ``` COMMIT; ``` |
+| ``` SELECT `id`,`stock` FROM `product_stock` WHERE company_id = 1; ```<br>![100](http://xuye-private.oss-cn-shanghai.aliyuncs.com/mackdown/backend-docs/62FF8D59-7477-49ca-B2ED-A0C3C7B8838B.png) 避免幻读【MySQL该隔离级别可避免幻读】 |  |
+| ``` COMMIT; ``` |  |
+| ``` SELECT `id`,`stock` FROM `product_stock` WHERE company_id = 1; ```<br>![结果正常](http://xuye-private.oss-cn-shanghai.aliyuncs.com/mackdown/backend-docs/20210803103457.png) |  |
 
