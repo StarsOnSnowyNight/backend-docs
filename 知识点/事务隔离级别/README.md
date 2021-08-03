@@ -1,13 +1,19 @@
 # 事务的隔离级别
 
 ### 什么是事务（transaction）？
-#####事务是应用程序中一系列严密的操作，所有操作必须成功完成，否则在每个操作中所作的所有更改都会被撤消。
-#####比如说，在转账系统中，A给B转账100元。那需要有两步操作
+
+##### 事务是应用程序中一系列严密的操作，所有操作必须成功完成，否则在每个操作中所作的所有更改都会被撤消。
+
+##### 比如说，在转账系统中，A给B转账100元。那需要有两步操作
+
 - A扣除100元
 - B增加100元
-#####如果A扣除完100元后，系统突然崩溃，则会导致B的账户余额错误。
-#####通过事务就可以保证这两步关键的操作，要么都成功，要么都被撤销。
-######Tips：在 MySQL 中只有使用了 Innodb 数据库引擎的数据库或表才支持事务。
+
+##### 如果A扣除完100元后，系统突然崩溃，则会导致B的账户余额错误。
+
+##### 通过事务就可以保证这两步关键的操作，要么都成功，要么都被撤销。
+
+###### Tips：在 MySQL 中只有使用了 Innodb 数据库引擎的数据库或表才支持事务。
 
 ### 事务的控制语句？
 - BEGIN | START TRANSACTION 显式地开启一个事务；
@@ -42,11 +48,13 @@
 | READ-COMMITTED  | X | √ | √ |
 | REPEATABLE-READ  | X | X | √ |
 | SERIALIZABLE  | X | X | X |
-######Tips：repeatable read 允许幻读，这是ANSI/ISO SQL标准的定义要求。
-######敲重点！MySQL 的 Innodb 数据库引擎默认使用REPEATABLE-READ隔离级别。并且MySQL的REPEATABLE-READ是可以避免幻读的。
+
+###### Tips：repeatable read 允许幻读，这是ANSI/ISO SQL标准的定义要求。
+
+###### 敲重点！MySQL 的 Innodb 数据库引擎默认使用REPEATABLE-READ隔离级别。并且MySQL的REPEATABLE-READ是可以避免幻读的。
 
 ### 实际演示
-- 数据准备
+- **数据准备**
 ```sql
 CREATE TABLE `product_stock` (
   `id` INT(11) NOT NULL AUTO_INCREMENT COMMENT 'id',
@@ -59,7 +67,7 @@ CREATE TABLE `product_stock` (
 
 insert  into `product_stock`(`id`,`company_id`,`product_id`,`stock`) values (1,1,10,100),(2,1,11,100);
 ```
-- READ-UNCOMMITTED【出现脏读】
+- **READ-UNCOMMITTED【出现脏读】**
 
 |  事务1   | 事务2  | 
 |  :----:  | :----:  |
@@ -72,7 +80,7 @@ insert  into `product_stock`(`id`,`company_id`,`product_id`,`stock`) values (1,1
 |  | ``` ROLLBACK;```  |
 |  ``` SELECT `stock` FROM `product_stock` WHERE id = 1;``` <br>![100](http://xuye-private.oss-cn-shanghai.aliyuncs.com/mackdown/backend-docs/2540120D-BCEE-4aaa-B394-09B9E6192098.png) |   |
 
-- READ-COMMITTED【避免脏读，出现不可重复读】
+- **READ-COMMITTED【避免脏读，出现不可重复读】**
 
 |  事务1   | 事务2  | 
 |  :----:  | :----:  |
@@ -85,7 +93,7 @@ insert  into `product_stock`(`id`,`company_id`,`product_id`,`stock`) values (1,1
 |  |  ``` COMMIT; ```  |
 |   ``` SELECT `stock` FROM `product_stock` WHERE id = 1; ``` <br>![90](http://xuye-private.oss-cn-shanghai.aliyuncs.com/mackdown/backend-docs/957CC49A-F767-4742-8268-7993D3894E70.png) 出现不可重复读|   |
 
-- REPEATABLE-READ【MySQL版，避免脏读，避免不可重复读，避免幻读】
+- **REPEATABLE-READ【MySQL版，避免脏读，避免不可重复读，避免幻读】**
 
 |  事务1   | 事务2  | 
 |  :----:  | :----:  |
