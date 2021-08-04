@@ -4,6 +4,8 @@
 
 数据库锁定机制简单来说，就是数据库为了保证数据的一致性，而使各种共享资源在被并发访问变得有序所设计的一种规则。
 
+![数据库锁](http://xuye-private.oss-cn-shanghai.aliyuncs.com/mackdown/%E7%9F%A5%E8%AF%86%E7%82%B9/0E721D6A-7D0C-4d20-973B-5F2E3E3C441B.png)
+
 ### MVCC多版本并发控制
 
 - MySQL InnoDB存储引擎，实现的是基于多版本的并发控制协议——MVCC (Multi-Version Concurrency Control)
@@ -134,5 +136,5 @@ CREATE TABLE `product_stock` (
         
         ###### Tips：共享锁也会有以上情况。实现间隙锁和Next-Key 锁的前提是目标数据where条件有索引，否则直接走表锁了。
         
-    - Next-Key 锁：
+    - AUTO-INC锁：
         - > 一个AUTO-INC锁是通过交易将与表中取得一个特殊的表级锁 AUTO_INCREMENT列。在最简单的情况下，如果一个事务正在向表中插入值，则任何其他事务都必须等待自己插入到该表中，以便第一个事务插入的行接收连续的主键值。
