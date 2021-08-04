@@ -62,7 +62,8 @@ CREATE TABLE `product_stock` (
   `product_id` INT(11) NOT NULL COMMENT '产品id',
   `stock` INT(11) NOT NULL COMMENT '库存',
   PRIMARY KEY (`id`),
-  UNIQUE KEY uk_product(company_id,product_id)
+  UNIQUE KEY uk_product(company_id,product_id),
+  KEY `idx_stock` (`stock`)
 ) ENGINE=INNODB DEFAULT CHARSET=utf8mb4 COMMENT='产品库存表';
 
 insert  into `product_stock`(`id`,`company_id`,`product_id`,`stock`) values (1,1,10,100),(2,1,11,100);

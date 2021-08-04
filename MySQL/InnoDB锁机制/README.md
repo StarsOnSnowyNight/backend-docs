@@ -1,5 +1,5 @@
-# InnoDB数据库锁
-
+# InnoDB锁机制
+> 参考文档：https://dev.mysql.com/doc/refman/5.7/en/innodb-locking.html#innodb-auto-inc-locks
 ### 什么是数据库锁？
 
 数据库锁定机制简单来说，就是数据库为了保证数据的一致性，而使各种共享资源在被并发访问变得有序所设计的一种规则。
@@ -31,8 +31,20 @@
     ```sql
     update table set field = x,version = 2 where id = 1 and version = 1; 
     ```
+    然后通过update返回的影响行数来判断是否更新成功。
     
-
+**用例表**
+```sql
+CREATE TABLE `product_stock` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `company_id` INT(11) NOT NULL COMMENT '企业id',
+  `product_id` INT(11) NOT NULL COMMENT '产品id',
+  `stock` INT(11) NOT NULL COMMENT '库存',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY uk_product(company_id,product_id),
+  KEY `idx_stock` (`stock`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8mb4 COMMENT='产品库存表';
+```
 ### 悲观锁
 
 - 悲观锁是悲观的认为数据并发情况下，会被其他线程干扰（比如幻读，丢失修改），所以会对需要的数据进行加锁，当其他线程访问被加锁的数据时，都会被阻塞。
@@ -86,7 +98,41 @@
     - 间隙锁（GAP）：
         - 间隙锁是对索引记录之间的间隙的锁，或者是对第一个索引记录之前或最后一个索引记录之后的间隙的锁。例如，SELECT c1 FROM t WHERE c1 BETWEEN 10 and 20 FOR UPDATE;阻止其他事务将 的值插入15到列中t.c1，无论列 中是否已经存在任何此类值，因为该范围内所有现有值之间的间隙被锁定。
         - 这里还值得注意的是，不同的事务可以在间隙上持有冲突的锁。例如，事务 A 可以在间隙上持有共享间隙锁（间隙 S 锁），而事务 B 在同一间隙上持有排他间隙锁（间隙 X 锁）。允许冲突间隙锁的原因是，如果从索引中清除记录，则必须合并不同事务在记录上持有的间隙锁。
-        - 间隙锁定InnoDB是“纯粹的抑制性”，这意味着它们的唯一目的是防止其他事务插入间隙。间隙锁可以共存。一个事务采用的间隙锁不会阻止另一个事务在同一间隙上采用间隙锁。共享和排他间隙锁之间没有区别。它们彼此不冲突，并且执行相同的功能。
         - REPEATABLE READ或以上的隔离级别下的特定操作才会取得gap lock
         - 可以防止并发事务带来的幻读（事务1查询id=1的记录不存在，事务2插入id=1的记录，事务1再插入id=1，就会出现主键冲突）问题。
+                
+        |  事务1   | 事务2  | 
+        |  :----:  | :----:  |
+        | ```BEGIN;``` | ```BEGIN;``` |
+        | ```SELECT * FROM `product_stock` WHERE id > 5 FOR UPDATE;```<br>id数据只到5过 |  |
+        |  | ```INSERT INTO `product_stock` VALUES(6,1,1,1);```<br>...阻塞 |
+        | ```commit;``` | 执行成功 |
         
+    - Next-Key 锁：
+        - next-key 锁是索引记录上的记录锁和索引记录之前的间隙上的间隙锁的组合。
+        - > InnoDB执行行级锁定的方式是，当它搜索或扫描表索引时，它会在遇到的索引记录上设置共享锁或排他锁。因此，行级锁实际上是索引记录锁。索引记录上的 next-key 锁也会影响该索引记录之前的“间隙”。也就是说，next-key 锁是一个索引记录锁加上一个在索引记录之前的间隙上的间隙锁。如果一个会话对R索引中的记录具有共享锁或排他锁 ，则另一个会话不能R在索引顺序中紧接在前的间隙中插入新的索引记录 。
+        - 假设stock的值包含20,100,200。那么锁定的区域为：(负无穷,20],(20,100],(100,200],(200,正无穷]
+          <br>当执行```SELECT * FROM `product_stock` WHERE stock = 20 FOR UPDATE; ```，锁住的区域为(负无穷,100]
+        
+        |  事务1   | 事务2  | 
+        |  :----:  | :----:  |
+        | ```BEGIN;``` | ```BEGIN;``` |
+        | ```SELECT * FROM `product_stock` ```<br>![1](http://xuye-private.oss-cn-shanghai.aliyuncs.com/mackdown/%E7%9F%A5%E8%AF%86%E7%82%B9/E61895B3-E8E2-42cb-A78D-549337C32590.png) |  |
+        | ```SELECT * FROM `product_stock` WHERE stock = 20 FOR UPDATE; ``` |  |
+        |  | ```INSERT INTO `product_stock` VALUES(7,1,1,19);```<br>...阻塞 |
+        | ```commit;``` | 插入成功 |
+        |  | ```commit;``` |
+        | ```BEGIN;``` | ```BEGIN;``` |
+        | ```SELECT * FROM `product_stock` WHERE stock = 20 FOR UPDATE; ``` |  |
+        |  | ```INSERT INTO `product_stock` VALUES(7,1,2,21);```<br>...阻塞 |
+        | ```commit;``` | 插入成功 |
+        |  | ```commit;``` |
+        | ```BEGIN;``` | ```BEGIN;``` |
+        | ```SELECT * FROM `product_stock` WHERE stock = 20 FOR UPDATE; ``` |  |
+        |  | ```INSERT INTO `product_stock` VALUES(7,1,3,101);```<br>插入成功 |
+        | ```commit;``` | ```commit;``` |
+        
+        ###### Tips：共享锁也会有以上情况。实现间隙锁和Next-Key 锁的前提是目标数据where条件有索引，否则直接走表锁了。
+        
+    - Next-Key 锁：
+        - > 一个AUTO-INC锁是通过交易将与表中取得一个特殊的表级锁 AUTO_INCREMENT列。在最简单的情况下，如果一个事务正在向表中插入值，则任何其他事务都必须等待自己插入到该表中，以便第一个事务插入的行接收连续的主键值。
