@@ -114,4 +114,4 @@ insert  into `product_stock`(`id`,`company_id`,`product_id`,`stock`) values (1,1
 | ``` COMMIT; ``` |  |
 | ``` SELECT `id`,`stock` FROM `product_stock` WHERE company_id = 1; ```<br>![结果正常](http://xuye-private.oss-cn-shanghai.aliyuncs.com/mackdown/backend-docs/20210803103457.png) |  |
 
-###### Tips：对于丢失修改，和另外一种幻读（事务1查询id=1的记录不存在，事务2插入id=1的记录，事务1再插入id=1，就会出现主键冲突），我们可以通过数据库锁来解决。
+###### Tips：对于丢失修改，我们可以通过数据库锁来解决。
