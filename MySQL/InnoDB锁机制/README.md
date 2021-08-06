@@ -1,5 +1,5 @@
 # InnoDB锁机制
-> 参考文档：https://dev.mysql.com/doc/refman/5.7/en/innodb-locking.html#innodb-auto-inc-locks
+> 官方文档：https://dev.mysql.com/doc/refman/5.7/en/innodb-locking.html#innodb-auto-inc-locks
 ### 什么是数据库锁？
 
 数据库锁定机制简单来说，就是数据库为了保证数据的一致性，而使各种共享资源在被并发访问变得有序所设计的一种规则。
